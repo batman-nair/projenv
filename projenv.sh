@@ -7,122 +7,191 @@ TOPMARGIN=27
 SCREEN_WIDTH=$(xwininfo -root | awk '$1=="Width:" {print $2}')
 SCREEN_HEIGHT=$(xwininfo -root | awk '$1=="Height:" {print $2}')
 
-filename=$1
+saving=1
 
-while read prog dID pos
-do
-	# echo $prog $dID $pos
+while test $# -gt 0; do
+        case "$1" in
+			-h|--help)
+				echo "projenv - Save and open window arrangements"
+				echo " "
+				# echo "projenv [options] application [arguments]"
+				# echo " "
+				echo "options:"
+				echo "-h, --help                show brief help"
+				echo "-o, --open=FILE       	open a projenv file"
+				echo "-s, --save=FILE      		save current window arrangement"
+				exit 0
+				;;
+			-s)
+				shift
+				filename=$1
+				saving=1
+				shift
+				;;
+			-o)
+				shift
+				filename=$1
+				saving=0
+				shift
+				;;
+			*)
+				break
+				;;
+        esac
+done
 
-	#Already running window list
-	initnumWindows=$(wmctrl -l | wc -l)
-	#Already running prog instance list
-	initWindows="$(wmctrl -lx | grep -i $prog)"
-	
-	#Run program
-	$prog & disown
+if [ -z $filename ]; then
+	echo Quicksave file taken
+	filename="quicksave.pe"
+fi
 
-	#Wait for program to create window
-	while [ $(wmctrl -l | wc -l) -eq $initnumWindows ]
+if [ $saving == 1 ]; then
+	rm "$filename"
+	while read winid dID PID X Y W H CMD_FLAG NAME
 	do
-		true
-	done
+		# echo ps --no-headers -p $PID -o cmd
+		cmd=$(ps --no-headers -p $PID -o cmd)
+		echo -e "$cmd\t$dID $X $Y $W $H" >> "$filename"
 
-	#list of prog windows after creation
-	finalWindows="$(wmctrl -lx | grep -i $prog)"
-	reqdWindow="$finalWindows"
-	
+	done <<< "$(wmctrl -lGpx)"
 
-	#delete all windows that were opened before
-	while read -r line; do
-		# echo "before delete $reqdWindow"
-	    # echo try delete line $line
-		reqdWindow="${reqdWindow//$line}" 
-		# echo "after delete $reqdWindow"
-	done <<< "$initWindows"
+else
+	while read line
+	do
+		# echo $prog $dID $pos
+		prog=$(echo -e "$line" | cut -f1 | awk '{ print $1 }')
+		winDetails=( $(echo -e "$line" | cut -f2) )
+		dID=${winDetails[0]}
+		pos=${winDetails[1]}
 
-	#get required window id
-	# echo Init "$initWindows"
-	# echo final "$finalWindows"
-	# echo reqd "$reqdWindow"
+		#Already running window list
+		initnumWindows=$(wmctrl -l | wc -l)
+		#Already running prog instance list
+		initWindowsWinID="$(wmctrl -lp | awk '{ print $1 }')"
+		
+		echo running $prog
+		#Run program
+		eval $prog & disown
 
-	winid=$(echo $reqdWindow | grep -i $prog | awk '{print $1}')
-	# echo New $prog window created $winid
+		#Wait for program to create window
+		timedOut=0
+		timeout=$((SECONDS+3))
+		while [ $(wmctrl -l | wc -l) -eq $initnumWindows ]
+		do
+			if [ $SECONDS -gt $timeout ]; then
+				echo Program window open timed out 
+				timedOut=1
+				break
+			fi
+		done
+		if [ $timedOut -eq 1 ]; then
+			echo Executing next command
+			continue
+		fi
+		#list of prog windows after creation
+		finalWindows="$(wmctrl -lxp)"
+		reqdWindow="$finalWindows"
+		
 
-	#Calculate required positioning
-	if [ "$pos" == "right" ]; then
+		#delete all windows that were opened before
+		while read -r WinID; do
+			echo "before delete $reqdWindow"
+		    echo try delete WinID $WinID
+			reqdWindow=$(echo "$reqdWindow" | grep -v $WinID)
+			echo "after delete $reqdWindow"
+		done <<< "$initWindowsWinID"
 
-		W=$(( $SCREEN_WIDTH / 2 ))
-		H=$(( $SCREEN_HEIGHT - 2 * $TOPMARGIN ))
+		#get required window id
+		echo Init "$initWindowsPID"
+		echo final "$finalWindows"
+		echo reqd "$reqdWindow"
 
-		X=$(( $SCREEN_WIDTH / 2 ))
-		Y=$TOPMARGIN
+		winid=$(echo $reqdWindow | awk '{print $1}')
+		echo New $prog window created $winid
 
-		# echo To move right $X,$Y,$W,$H
+		#Calculate required positioning
+		if [ "$pos" == "right" ]; then
 
-	elif [ "$pos" == "left" ]; then
+			W=$(( $SCREEN_WIDTH / 2 ))
+			H=$(( $SCREEN_HEIGHT - 2 * $TOPMARGIN ))
 
-		W=$(( $SCREEN_WIDTH / 2 ))
-		H=$(( $SCREEN_HEIGHT - 2 * $TOPMARGIN ))
+			X=$(( $SCREEN_WIDTH / 2 ))
+			Y=$TOPMARGIN
 
-		X=0
-		Y=$TOPMARGIN
+			# echo To move right $X,$Y,$W,$H
 
-		# echo To move left $X,$Y,$W,$H
-	
-	elif [ "$pos" == "full" ]; then
+		elif [ "$pos" == "left" ]; then
 
-		W=$(( $SCREEN_WIDTH ))
-		H=$(( $SCREEN_HEIGHT - 2 * $TOPMARGIN ))
+			W=$(( $SCREEN_WIDTH / 2 ))
+			H=$(( $SCREEN_HEIGHT - 2 * $TOPMARGIN ))
 
-		X=0
-		Y=$TOPMARGIN
+			X=0
+			Y=$TOPMARGIN
 
-		# echo To move full $X,$Y,$W,$H
-	
-	elif [ "$pos" == "bottom-left" ]; then
+			# echo To move left $X,$Y,$W,$H
+		
+		elif [ "$pos" == "full" ]; then
 
-		W=$(( $SCREEN_WIDTH / 2 ))
-		H=$(( $SCREEN_HEIGHT / 2 - 2 * $TOPMARGIN ))
+			W=$(( $SCREEN_WIDTH ))
+			H=$(( $SCREEN_HEIGHT - 2 * $TOPMARGIN ))
 
-		X=0
-		Y=$(( $SCREEN_HEIGHT / 2 + $TOPMARGIN ))
+			X=0
+			Y=$TOPMARGIN
 
-		# echo To move bottom-left $X,$Y,$W,$H
-	
-	elif [ "$pos" == "bottom-right" ]; then
+			# echo To move full $X,$Y,$W,$H
+		
+		elif [ "$pos" == "bottom-left" ]; then
 
-		W=$(( $SCREEN_WIDTH / 2 ))
-		H=$(( $SCREEN_HEIGHT / 2 - 2 * $TOPMARGIN ))
+			W=$(( $SCREEN_WIDTH / 2 ))
+			H=$(( $SCREEN_HEIGHT / 2 - 2 * $TOPMARGIN ))
 
-		X=$(( $SCREEN_WIDTH / 2 ))
-		Y=$(( $SCREEN_HEIGHT / 2 + $TOPMARGIN ))
+			X=0
+			Y=$(( $SCREEN_HEIGHT / 2 + $TOPMARGIN ))
 
-		# echo To move bottom-right $X,$Y,$W,$H
+			# echo To move bottom-left $X,$Y,$W,$H
+		
+		elif [ "$pos" == "bottom-right" ]; then
 
-	elif [ "$pos" == "top-left" ]; then
+			W=$(( $SCREEN_WIDTH / 2 ))
+			H=$(( $SCREEN_HEIGHT / 2 - 2 * $TOPMARGIN ))
 
-		W=$(( $SCREEN_WIDTH / 2 ))
-		H=$(( $SCREEN_HEIGHT / 2 - 2 * $TOPMARGIN ))
+			X=$(( $SCREEN_WIDTH / 2 ))
+			Y=$(( $SCREEN_HEIGHT / 2 + $TOPMARGIN ))
 
-		X=0
-		Y=$TOPMARGIN
+			# echo To move bottom-right $X,$Y,$W,$H
 
-		# echo To move top-left $X,$Y,$W,$H
-	
-	elif [ "$pos" == "top-right" ]; then
+		elif [ "$pos" == "top-left" ]; then
 
-		W=$(( $SCREEN_WIDTH / 2 ))
-		H=$(( $SCREEN_HEIGHT / 2 - 2 * $TOPMARGIN ))
+			W=$(( $SCREEN_WIDTH / 2 ))
+			H=$(( $SCREEN_HEIGHT / 2 - 2 * $TOPMARGIN ))
 
-		X=$(( $SCREEN_WIDTH / 2 ))
-		Y=$TOPMARGIN
+			X=0
+			Y=$TOPMARGIN
 
-		# echo To move top-left $X,$Y,$W,$H
+			# echo To move top-left $X,$Y,$W,$H
+		
+		elif [ "$pos" == "top-right" ]; then
 
-	fi 
-	
-	#Move the window accordingly
-	# echo "wmctrl -ir $winid -b remove,maximized_horz,maximized_vert && wmctrl -ir $winid -t $dID && wmctrl -ir $winid -e 0,$X,$Y,$W,$H "
-	wmctrl -ir $winid -b remove,maximized_horz,maximized_vert && wmctrl -ir $winid -t $dID && wmctrl -ir $winid -e 0,$X,$Y,$W,$H 
+			W=$(( $SCREEN_WIDTH / 2 ))
+			H=$(( $SCREEN_HEIGHT / 2 - 2 * $TOPMARGIN ))
 
-done < "$filename"
+			X=$(( $SCREEN_WIDTH / 2 ))
+			Y=$TOPMARGIN
+
+			# echo To move top-left $X,$Y,$W,$H
+
+		elif [[ $pos =~ ^[0-9]* ]]; then
+			X=${winDetails[1]}
+			Y=${winDetails[2]}
+			W=${winDetails[3]}
+			H=${winDetails[4]}
+
+		fi 
+		
+		#Move the window accordingly
+		echo "wmctrl -ir $winid -b remove,maximized_horz,maximized_vert && wmctrl -ir $winid -t $dID && wmctrl -ir $winid -e 0,$X,$Y,$W,$H "
+		wmctrl -ir $winid -b remove,maximized_horz,maximized_vert && wmctrl -ir $winid -t $dID && wmctrl -ir $winid -e 0,$X,$Y,$W,$H 
+
+	done < "$filename"
+
+fi
