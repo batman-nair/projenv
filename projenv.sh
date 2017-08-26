@@ -9,13 +9,15 @@ SCREEN_HEIGHT=$(xwininfo -root | awk '$1=="Height:" {print $2}')
 
 saving=1
 
+#Path to project environment save files
+PE_PATH="$HOME/.projenv"
+mkdir -p $PE_PATH
+
 while test $# -gt 0; do
         case "$1" in
 			-h|--help)
 				echo "projenv - Save and open window arrangements"
 				echo " "
-				# echo "projenv [options] application [arguments]"
-				# echo " "
 				echo "options:"
 				echo "-h, --help                show brief help"
 				echo "-o, --open=FILE       	open a projenv file"
@@ -45,8 +47,12 @@ if [ -z $filename ]; then
 	filename="quicksave.pe"
 fi
 
+filename="$PE_PATH/$filename"
+
 if [ $saving == 1 ]; then
-	rm "$filename"
+	if [ -e "$filename" ]; then
+		rm "$filename"
+	fi
 	while read winid dID PID X Y W H CMD_FLAG NAME
 	do
 		# echo ps --no-headers -p $PID -o cmd
@@ -58,7 +64,6 @@ if [ $saving == 1 ]; then
 else
 	while read line
 	do
-		# echo $prog $dID $pos
 		prog=$(echo -e "$line" | cut -f1 | awk '{ print $1 }')
 		winDetails=( $(echo -e "$line" | cut -f2) )
 		dID=${winDetails[0]}
@@ -69,12 +74,13 @@ else
 		#Already running prog instance list
 		initWindowsWinID="$(wmctrl -lp | awk '{ print $1 }')"
 		
-		echo running $prog
+		echo Starting $prog
 		#Run program
 		eval $prog & disown
 
 		#Wait for program to create window
 		timedOut=0
+		#3 second timeout
 		timeout=$((SECONDS+3))
 		while [ $(wmctrl -l | wc -l) -eq $initnumWindows ]
 		do
@@ -95,17 +101,11 @@ else
 
 		#delete all windows that were opened before
 		while read -r WinID; do
-			echo "before delete $reqdWindow"
-		    echo try delete WinID $WinID
 			reqdWindow=$(echo "$reqdWindow" | grep -v $WinID)
-			echo "after delete $reqdWindow"
+			# echo "after delete $reqdWindow"
 		done <<< "$initWindowsWinID"
 
 		#get required window id
-		echo Init "$initWindowsPID"
-		echo final "$finalWindows"
-		echo reqd "$reqdWindow"
-
 		winid=$(echo $reqdWindow | awk '{print $1}')
 		echo New $prog window created $winid
 
@@ -179,7 +179,7 @@ else
 			Y=$TOPMARGIN
 
 			# echo To move top-left $X,$Y,$W,$H
-
+		# All data specified
 		elif [[ $pos =~ ^[0-9]* ]]; then
 			X=${winDetails[1]}
 			Y=${winDetails[2]}
@@ -189,9 +189,11 @@ else
 		fi 
 		
 		#Move the window accordingly
-		echo "wmctrl -ir $winid -b remove,maximized_horz,maximized_vert && wmctrl -ir $winid -t $dID && wmctrl -ir $winid -e 0,$X,$Y,$W,$H "
+		echo Resizing window to $X, $Y, $W, $H in desktop $dID
 		wmctrl -ir $winid -b remove,maximized_horz,maximized_vert && wmctrl -ir $winid -t $dID && wmctrl -ir $winid -e 0,$X,$Y,$W,$H 
 
 	done < "$filename"
+
+	echo Project environment finished opening
 
 fi
