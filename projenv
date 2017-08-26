@@ -24,13 +24,13 @@ while test $# -gt 0; do
 				echo "-s, --save=FILE			save current window arrangement"
 				exit 0
 				;;
-			-s)
+			-s|--save)
 				shift
 				filename=$1
 				saving=1
 				shift
 				;;
-			-o)
+			-o|--open)
 				shift
 				filename=$1
 				saving=0
