@@ -16,12 +16,12 @@ mkdir -p $PE_PATH
 while test $# -gt 0; do
         case "$1" in
 			-h|--help)
-				echo "projenv - Save and open window arrangements"
+				echo "projenv - Save and reopen application window layouts"
 				echo " "
 				echo "options:"
-				echo "-h, --help                show brief help"
-				echo "-o, --open=FILE       	open a projenv file"
-				echo "-s, --save=FILE      		save current window arrangement"
+				echo "-h, --help			show brief help"
+				echo "-o, --open=FILE			open a projenv file"
+				echo "-s, --save=FILE			save current window arrangement"
 				exit 0
 				;;
 			-s)
