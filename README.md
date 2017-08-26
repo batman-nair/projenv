@@ -1,8 +1,44 @@
 # projenv
-Save and open window arrangements for the type of project you are working on. 
+Script to save and reopen application window layouts
 
+A handy script to remove the hassle of having to reopen and resize your windows everytime you work on a specific project.
 
-To open a python dev window arrangement, run 
-```sh
-$ ./projenv.sh python-dev.pe 
+##Installing
+This script requires wmctrl for its working, so first install it
+```bash
+sudo apt install wmctrl
+```
+To make the script accessible from anywhere in the system
+```bash
+sudo mv projenv /usr/bin/projenv
+```
+
+##Usage
+
+To save the current layout for future use
+```bash
+./projenv -s filename
+```
+To open a previously saved layout
+```bash
+./projenv -o filename
+```
+
+You can also quicksave your current layout with just
+`./projenv` and open it with `./projenv -o`
+
+The project environment saves are in your $HOME/.projenv folder
+
+You can edit and create custom files for use there
+
+The format for the file is as follows ended with linebreak
+```text
+command-name	desktop-number positioning
+```
+The positioning can be worded as "top", "right", "top-right", "bottom-left" and so on or specified with "X Y Width Height" numbers.
+
+##Troubleshooting
+If the script has permission problems for executing, go to the folder containing the script and do
+```bash
+chmod +x projenv
 ```
