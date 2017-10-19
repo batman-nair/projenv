@@ -24,8 +24,12 @@ To open a previously saved layout
 ./projenv -o filename
 ```
 
-You can also quicksave your current layout with just
-`./projenv` and open it with `./projenv -o`
+Or for quick use just do
+```bash
+./projenv
+
+./projenv -o
+```
 
 The project environment saves are in your $HOME/.projenv folder
 
