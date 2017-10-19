@@ -4,7 +4,7 @@ Script to save and reopen application window layouts
 A handy script to remove the hassle of having to reopen and resize your windows everytime you work on a specific project.
 
 ## Installing
-This script requires wmctrl for its working, so first install it
+This script requires wmctrl and xwininfo for its working, so first install it like
 ```bash
 sudo apt install wmctrl
 ```
